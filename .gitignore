@@ -1,1 +1,4 @@
 instance/
+*.pyc
+*.log
+*.db

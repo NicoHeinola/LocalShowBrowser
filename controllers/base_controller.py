@@ -8,7 +8,3 @@ class BaseController:
 
     def _register_routes(self):
         pass
-
-    def _return_response(self, response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        return response
