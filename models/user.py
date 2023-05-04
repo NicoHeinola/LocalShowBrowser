@@ -10,7 +10,7 @@ class User(BaseModel):
     username = db.Column(db.String(255), unique=True, nullable=False)
     password = db.Column(db.String, unique=False, nullable=False)
     is_admin = db.Column(db.Boolean, unique=False, nullable=False, default=False)
-    user_episodes = db.relationship("UserEpisode", backref=db.backref("user-user-episodes", uselist=False))
+    user_episodes = db.relationship("UserEpisode", backref=db.backref("user-user-episodes", uselist=False), cascade="all,delete")
 
     @property
     def serialize(self):

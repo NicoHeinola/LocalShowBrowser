@@ -10,6 +10,7 @@ from models.season import Season
 from models.show import Show
 from models.show_alternate_title import ShowAlternateTitle
 from models.show_cover_image import ShowCoverImage
+from models.user_episode import UserEpisode
 
 
 class ShowController(BaseController):
@@ -99,7 +100,7 @@ class ShowController(BaseController):
             if 'titles' in data:
                 alternate_titles = data['titles']
                 for title in alternate_titles:
-                    show_alternate_title = ShowAlternateTitle(title=title.title, show_id=show.id)
+                    show_alternate_title = ShowAlternateTitle(title=title['title'], show_id=show.id)
                     db.session.add(show_alternate_title)
                     db.session.commit()
 
@@ -135,7 +136,7 @@ class ShowController(BaseController):
                     title = episode['title']
                     number = episode['number']
                     filename = episode['filename']
-                    is_special = episode['isSpecial']
+                    is_special = episode['is_special']
                     season_id = db_season.id
 
                     # Revers changes
@@ -156,6 +157,69 @@ class ShowController(BaseController):
                     db_episodes.append(episode)
 
             return make_response(jsonify({'status': 'ok'}), 200)
+
+        @self._app.route(base_name + "/<show_id>", methods=['DELETE'])
+        @JWTExtension.admin_token_required
+        def delete_show(current_user, show_id):
+            if not show_id:
+                return make_response({"error": "Missing show id!"}, 400)
+
+            # Find show
+            show = Show.query.filter_by(id=show_id).first()
+            if show is None:
+                return make_response({"error": "Show not found!"}, 404)
+
+            db.session.delete(show)
+            db.session.commit()
+            return make_response(jsonify({'status': 'ok'}), 200)
+
+        @self._app.route(base_name + "/<show_id>/watched-episode", methods=['POST'])
+        @JWTExtension.token_required
+        def watched_show_episode(current_user, show_id):
+            data = request.json
+            season_id = data['season_id']
+            episode_id = data['episode_id']
+            watched = data['watched']
+
+            if show_id is None:
+                return make_response({"error": "Missing show id!"}, 400)
+            if season_id is None:
+                return make_response({"error": "Missing season id!"}, 400)
+            if episode_id is None:
+                return make_response({"error": "Missing episode id!"}, 400)
+            if watched is None:
+                return make_response({"error": "Missing watched id!"}, 400)
+
+            # Find show
+            episode = Episode.query.filter_by(id=episode_id, season_id=season_id).first()
+            if episode is None:
+                return make_response({"error": "Episode not found!"}, 404)
+
+            user_episode = UserEpisode.query.filter_by(episode_id=episode_id, user_id=current_user.id).first()
+            if not user_episode:
+                user_episode = UserEpisode(episode_id=episode_id, user_id=current_user.id, watched=watched)
+                db.session.add(user_episode)
+            else:
+                user_episode.watched = watched
+            db.session.commit()
+            return make_response(jsonify({'status': 'ok'}), 200)
+
+        @self._app.route(base_name + "/<show_id>/watched-episodes", methods=['GET'])
+        @JWTExtension.token_required
+        def get_watched_show_episodes(current_user, show_id):
+            if show_id is None:
+                return make_response({"error": "Missing show id!"}, 400)
+
+            # Query
+            query = UserEpisode.query
+            query = query.filter_by(user_id=current_user.id)
+            query = query.filter_by(watched=True)
+            query = query.outerjoin(Episode)
+            query = query.outerjoin(Season, Episode.season_id == Season.id)
+            query = query.filter(Season.show_id == show_id)
+            user_episodes = query.all()
+
+            return make_response(jsonify([episode.serialize for episode in user_episodes]), 200)
 
         @self._app.route(base_name, methods=['PUT'])
         @JWTExtension.admin_token_required
@@ -180,7 +244,7 @@ class ShowController(BaseController):
             show.title = title
 
             existing_show_cover_image = ShowCoverImage.query.filter_by(show_id=id).first()
-            if image_url != "" and not image_url == show.image_url:
+            if (image_url != "" and not image_url == show.image_url) or existing_show_cover_image is None:
                 image = GoogleImageSearch.download_image(image_url)
                 if existing_show_cover_image is not None:
                     show_cover_image = existing_show_cover_image
@@ -188,37 +252,37 @@ class ShowController(BaseController):
                 else:
                     show_cover_image = ShowCoverImage(cover_image=image, show_id=show.id)
                     db.session.add(show_cover_image)
-            else:
+            elif existing_show_cover_image is not None and (image_url == '' or image_url is None):
                 db.session.delete(existing_show_cover_image)
 
             show.image_url = image_url
 
             # Remove old titles
-            all_title_ids = ShowAlternateTitle.query.filter_by(show_id=id).pluck(id)
-            new_title_ids = [title.id for title in alternate_titles]
+            alternate_titles = data['titles']
+            all_title_ids = ShowAlternateTitle.query.filter_by(show_id=id).all()
+            new_title_ids = [title['id'] for title in alternate_titles if 'id' in title]
             for old_id in all_title_ids:
-                if old_id not in new_title_ids:
+                if old_id.id not in new_title_ids:
                     db.session.delete(old_id)
 
             # Add / Edit alternate titles
             if 'titles' in data:
-                alternate_titles = data['titles']
                 for title in alternate_titles:
                     if 'id' in title:
-                        show_alternate_title = ShowAlternateTitle.query.filter_by(id=title.id).first()
+                        show_alternate_title = ShowAlternateTitle.query.filter_by(id=title['id']).first()
                         if show_alternate_title is not None:
-                            show_alternate_title.title = title.title
+                            show_alternate_title.title = title['title']
 
                     else:
-                        show_alternate_title = ShowAlternateTitle(title=title, show_id=show.id)
+                        show_alternate_title = ShowAlternateTitle(title=title['title'], show_id=show.id)
                         db.session.add(show_alternate_title)
 
             # Remove old seasons and their episodes
-            all_seasons = ShowAlternateTitle.query.filter_by(show_id=id).all()
+            all_seasons = Season.query.filter_by(show_id=id).all()
             seasons = data['seasons']
             for old_season in all_seasons:
 
-                found_season = [season for season in seasons if 'id' in season and season.id == old_season.id]
+                found_season = [season for season in seasons if 'id' in season and season['id'] == old_season.id]
 
                 if len(found_season) == 0:  # Delete all episodes and the season itself
                     for episode in old_season.episodes:
@@ -227,7 +291,7 @@ class ShowController(BaseController):
 
                 else:
                     for old_episode in old_season.episodes:  # Episode deletion checks
-                        new_season_episode = [episode for episode in found_season[0].episodes if 'id' in episode and episode.id == old_episode.id]
+                        new_season_episode = [episode for episode in found_season[0]['episodes'] if 'id' in episode and episode['id'] == old_episode.id]
                         if len(new_season_episode) == 0:  # Delete the episode if not found anymore
                             db.session.delete(old_episode)
 
@@ -246,7 +310,7 @@ class ShowController(BaseController):
                     return make_response({"error": "Missing season parameters!", "params": [title, number, path, show_id, episodes]}, 400)
 
                 if 'id' in season:
-                    db_season = Season.query.filter_by(id=season.id).first()
+                    db_season = Season.query.filter_by(id=season['id']).first()
                     if db_season is None:
                         db.session.rollback()
                         return make_response({"error": "Season not found!"}, 404)
@@ -256,22 +320,22 @@ class ShowController(BaseController):
                 else:
                     db_season = Season(title=title, number=number, show_id=show_id, path=path)
                     db.session.add(db_season)
+                    db.session.commit()
 
                 # Create episodes in season
                 for episode in episodes:
                     title = episode['title']
                     number = episode['number']
                     filename = episode['filename']
-                    is_special = episode['isSpecial']
+                    is_special = episode['is_special']
                     season_id = db_season.id
 
                     # Revers changes
                     if not number or not path or not show_id or not episodes:
                         db.session.rollback()
                         return make_response({"error": "Missing episode parameters!"}, 400)
-
                     if 'id' in episode:
-                        db_episode = Episode.query.filter_by(id=episode.id).first()
+                        db_episode = Episode.query.filter_by(id=episode['id']).first()
                         if not db_episode:
                             db.session.rollback()
                             return make_response({"error": "Episode not found!"}, 404)

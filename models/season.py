@@ -9,7 +9,7 @@ class Season(BaseModel):
     title = db.Column(db.Integer, unique=False, nullable=False)
     path = db.Column(db.String(1000), unique=False, nullable=False)
     show_id = db.Column(db.Integer, db.ForeignKey('show.id'))
-    episodes = db.relationship("Episode", backref=db.backref("season-episodes", uselist=False))
+    episodes = db.relationship("Episode", backref=db.backref("season-episodes", uselist=False), cascade='all, delete')
 
     @property
     def serialize(self):

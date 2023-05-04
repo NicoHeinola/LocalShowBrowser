@@ -7,9 +7,9 @@ class Show(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), unique=False, nullable=False)
     image_url = db.Column(db.String(1000), unique=False, nullable=False, default='')
-    seasons = db.relationship("Season", backref=db.backref("show-seasons", uselist=False))
-    show_alternate_titles = db.relationship("ShowAlternateTitle", backref=db.backref("show-show-alternate-title", uselist=False))
-    cover_images = db.relationship("ShowCoverImage", backref=db.backref("cover-image", uselist=False))
+    seasons = db.relationship("Season", backref=db.backref("show-seasons", uselist=False), cascade='all, delete')
+    show_alternate_titles = db.relationship("ShowAlternateTitle", backref=db.backref("show-show-alternate-title", uselist=False), cascade="all,delete")
+    cover_images = db.relationship("ShowCoverImage", backref=db.backref("cover-image", uselist=False), cascade="all,delete")
 
     @property
     def serialize(self):
