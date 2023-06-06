@@ -10,6 +10,7 @@ class Episode(BaseModel):
     filename = db.Column(db.String(1000), unique=False, nullable=False)
     season_id = db.Column(db.Integer, db.ForeignKey('season.id'))
     is_special = db.Column(db.Boolean, unique=False, nullable=False, default=False)
+    user_episode = db.relationship("UserEpisode", backref=db.backref("user-episode", uselist=False), cascade="all,delete")
 
     @property
     def serialize(self):

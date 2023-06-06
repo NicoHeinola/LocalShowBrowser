@@ -10,6 +10,13 @@ class BlackListerFolder(BaseModel):
     def __repr__(self):
         return '<BlackListedFolder: %r>' % self.folder_path
 
+    @property
+    def serialize(self):
+        return {
+            'id': self.id,
+            'folder_path': self.folder_path,
+        }
+
     def seeds():
         path = 'Rick and mort Season 1'
         exists = BlackListerFolder.query.filter_by(folder_path=path).first()

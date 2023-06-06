@@ -3,7 +3,7 @@ import os
 from typing import List
 from extensions.database import db
 from models.blacklisted_folder import BlackListerFolder
-import re
+
 
 class EpisodePath:
     def __init__(self, name: str, file: str) -> None:
@@ -30,7 +30,7 @@ class EpisodePath:
             replaced_name = replaced_name.replace(f's{i}', ' ')
             replaced_name = replaced_name.replace(f'{i}e', ' ')
 
-        replaced_name = replaced_name.replace('ova', ' ').replace('episode', ' ').replace('ep',' ').replace('e', ' ').replace("episode", ' ').replace('s00', ' ').replace('_',' ').replace('.', ' ').replace('-', ' ')
+        replaced_name = replaced_name.replace('ova', ' ').replace('episode', ' ').replace('ep', ' ').replace('e', ' ').replace("episode", ' ').replace('s00', ' ').replace('_', ' ').replace('.', ' ').replace('-', ' ')
 
         name_as_list = replaced_name.split(' ')
 
@@ -94,7 +94,7 @@ class ShowHelper:
             if (file_extension in blacklisted_files):
                 continue
 
-            episode_path = EpisodePath('', file)
+            episode_path = EpisodePath(filename.split(".")[0], file)
 
             episodes.append(episode_path)
         return episodes

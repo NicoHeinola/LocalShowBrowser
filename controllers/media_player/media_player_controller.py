@@ -11,11 +11,13 @@ class MediaPlayerController(BaseController):
         base_name = '/media-player'
 
         @self._app.route(base_name + "/is-downloaded", methods=['GET'])
-        def is_media_player_downloaded():
+        @JWTExtension.admin_token_required
+        def is_media_player_downloaded(user):
             response = make_response(jsonify(VLCMediaPlayerExtension.vlc_media_player_is_downloaded()), 200)
             return response
 
         @self._app.route(base_name + "/download", methods=['GET'])
-        def download_media_player():
+        @JWTExtension.admin_token_required
+        def download_media_player(user):
             response = make_response(jsonify(VLCMediaPlayerExtension.download()), 200)
             return response

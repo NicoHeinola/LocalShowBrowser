@@ -1,10 +1,12 @@
 import json
+import os
 from controllers.base_controller import BaseController
 from flask import jsonify, make_response, request
 from extensions.database import db
 from extensions.google_image_search import GoogleImageSearch
 from extensions.jwt import JWTExtension
 from helpers.show_helper import SeasonPathEncoder, ShowHelper
+from helpers.vlc_media_player_helper import VLCMediaPlayerHelper
 from models.episode import Episode
 from models.season import Season
 from models.show import Show
@@ -116,6 +118,9 @@ class ShowController(BaseController):
                 show_id = show.id
                 episodes = season['episodes']
 
+                # Make a playlist
+                VLCMediaPlayerHelper.generate_xml_playlist_for_show(season['path'], episodes)
+
                 # Revert changes
                 if not number or not path or not show_id or not episodes:
                     for s in db_seasons:
@@ -139,7 +144,7 @@ class ShowController(BaseController):
                     is_special = episode['is_special']
                     season_id = db_season.id
 
-                    # Revers changes
+                    # Revert changes
                     if not number or not path or not show_id or not episodes:
                         for e in db_episodes:
                             db.session.delete(e)
@@ -244,8 +249,9 @@ class ShowController(BaseController):
             show.title = title
 
             existing_show_cover_image = ShowCoverImage.query.filter_by(show_id=id).first()
-            if (image_url != "" and not image_url == show.image_url) or existing_show_cover_image is None:
+            if image_url != "" and (image_url != show.image_url or existing_show_cover_image is None):
                 image = GoogleImageSearch.download_image(image_url)
+
                 if existing_show_cover_image is not None:
                     show_cover_image = existing_show_cover_image
                     show_cover_image.cover_image = image
@@ -322,6 +328,9 @@ class ShowController(BaseController):
                     db.session.add(db_season)
                     db.session.commit()
 
+                # Create vlc media player playlist
+                VLCMediaPlayerHelper.generate_xml_playlist_for_show(season['path'], episodes)
+
                 # Create episodes in season
                 for episode in episodes:
                     title = episode['title']
@@ -350,3 +359,43 @@ class ShowController(BaseController):
 
             db.session.commit()
             return make_response(jsonify({'status': 'ok'}), 200)
+
+        @self._app.route(base_name + "/<show_id>/<season_id>/<episode_id>/watch", methods=['GET'])
+        def watch_episode(show_id, season_id, episode_id):
+            if not show_id:
+                return make_response({"error": "Missing show id!"}, 400)
+            if not season_id:
+                return make_response({"error": "Missing season id!"}, 400)
+            if not episode_id:
+                return make_response({"error": "Missing episode id!"}, 400)
+
+            # Find episode
+            episode = Episode.query.filter_by(id=episode_id).first()
+            if episode is None:
+                return make_response({"error": "Episode not found!"}, 404)
+            # Find season
+            season = Season.query.filter_by(id=season_id).first()
+            if season is None:
+                return make_response({"error": "Season not found!"}, 404)
+
+            path = os.path.join(season.path, episode.filename)
+
+            VLCMediaPlayerHelper.open_file(path)
+
+            return make_response('', 200)
+
+        @self._app.route(base_name + "/<show_id>/<season_id>/watch", methods=['GET'])
+        def watch_season(show_id, season_id):
+            if not show_id:
+                return make_response({"error": "Missing show id!"}, 400)
+            if not season_id:
+                return make_response({"error": "Missing season id!"}, 400)
+
+            # Find season
+            season = Season.query.filter_by(id=season_id).first()
+            if season is None:
+                return make_response({"error": "Season not found!"}, 404)
+
+            VLCMediaPlayerHelper.open_playlist(season.path)
+
+            return make_response('', 200)

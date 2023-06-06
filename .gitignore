@@ -1,5 +1,7 @@
+instance
 instance/
 *.pyc
 *.log
 *.db
 *.exe
+*.db
