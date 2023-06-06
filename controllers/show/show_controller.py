@@ -31,6 +31,12 @@ class ShowController(BaseController):
 
             return make_response(jsonify([show.serialize for show in shows]), 200)
 
+        @self._app.route(base_name + "/latest_uploaded", methods=['GET'])
+        def getLatestUploadedShows():
+            # Query
+            shows = Show.query.order_by(Show.created_at.desc()).limit(3).all()
+            return make_response(jsonify([show.serialize for show in shows]), 200)
+
         @self._app.route(base_name + '/<id>', methods=['GET'])
         def getShow(id):
             search_term = request.args.get('searchTerm', '')
