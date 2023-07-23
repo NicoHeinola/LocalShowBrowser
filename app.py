@@ -1,7 +1,9 @@
+import os
 from flask import Flask, Response
 from flask_cors import CORS
 from controllers.auth.auth_controller import AuthController
 from controllers.blacklisted_folder.blacklisted_folder_controller import BlackListerFolderController
+from controllers.default.default_controller import DefaultController
 from controllers.media_player.media_player_controller import MediaPlayerController
 from controllers.setting.setting_controller import SettingController
 from controllers.show.show_controller import ShowController
@@ -36,6 +38,7 @@ user_controller = UserController(app)
 setting_controller = SettingController(app)
 media_player_controller = MediaPlayerController(app)
 blacklisted_folder_controller = BlackListerFolderController(app)
+default_controller = DefaultController(app)
 
 JWTExtension.app = app
 ShowHelper.app = app

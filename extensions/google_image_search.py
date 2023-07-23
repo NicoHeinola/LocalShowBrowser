@@ -66,7 +66,7 @@ class GoogleImageSearch:
                 image.click()
 
                 # Get the src from opened high-res image
-                selector = '/html/body/div[2]/c-wiz/div[3]/div[2]/div[3]/div[2]/div/div[2]/div[2]/div[2]/c-wiz/div/div/div/div[3]/div[1]/a'
+                selector = '/html/body/div[2]/c-wiz/div[3]/div[2]/div[3]/div[2]/div/div[2]/div[2]/c-wiz/div/div/div/div[3]/div[1]/a'
 
                 try:
                     link_with_images = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, selector)))
