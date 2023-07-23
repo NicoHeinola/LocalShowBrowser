@@ -11,6 +11,7 @@ class User(BaseModel):
     password = db.Column(db.String, unique=False, nullable=False)
     is_admin = db.Column(db.Boolean, unique=False, nullable=False, default=False)
     user_episodes = db.relationship("UserEpisode", backref=db.backref("user-user-episodes", uselist=False), cascade="all,delete")
+    user_opened_shows = db.relationship("UserOpenedShow", backref=db.backref("user-user-opened-show", uselist=False), cascade="all,delete")  # Don't get this in serialize
 
     @property
     def serialize(self):
@@ -19,7 +20,7 @@ class User(BaseModel):
             'username': self.username,
             'password': self.password,
             'is_admin': self.is_admin,
-            'user_episodes': [episode.serialize for episode in self.user_episodes],
+            'user_episodes': [episode.serialize for episode in self.user_episodes]
         }
 
     def __repr__(self):

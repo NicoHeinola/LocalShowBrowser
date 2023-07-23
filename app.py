@@ -16,6 +16,7 @@ from models.show_alternate_title import ShowAlternateTitle
 from models.show_cover_image import ShowCoverImage
 from models.user import User
 from models.user_episode import UserEpisode
+from models.user_opened_show import UserOpenedShow
 from models.setting import Setting
 from flask_migrate import Migrate
 
@@ -28,6 +29,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 migrate = Migrate(app, db)  # Migration support !!!
 
 db.init_app(app)
+
 show_controller = ShowController(app)
 auth_controller = AuthController(app)
 user_controller = UserController(app)

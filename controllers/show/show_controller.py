@@ -13,6 +13,7 @@ from models.show import Show
 from models.show_alternate_title import ShowAlternateTitle
 from models.show_cover_image import ShowCoverImage
 from models.user_episode import UserEpisode
+from models.user_opened_show import UserOpenedShow
 
 
 class ShowController(BaseController):
@@ -33,8 +34,17 @@ class ShowController(BaseController):
 
         @self._app.route(base_name + "/latest_uploaded", methods=['GET'])
         def getLatestUploadedShows():
-            # Query
             shows = Show.query.order_by(Show.created_at.desc()).limit(3).all()
+            return make_response(jsonify([show.serialize for show in shows]), 200)
+
+        @self._app.route(base_name + "/latest_watched", methods=['GET'])
+        @JWTExtension.with_current_user
+        def getLatestWatchedShows(current_user):
+            if current_user is None:
+                shows = []
+            else:
+                # results = db.session.query(User, Post).join(Post).filter(User.id == Post.user_id).all()
+                shows = db.session.query(Show).join(UserOpenedShow) Show.query.order_by(Show.created_at.desc()).limit(3).all()
             return make_response(jsonify([show.serialize for show in shows]), 200)
 
         @self._app.route(base_name + '/<id>', methods=['GET'])
@@ -367,13 +377,20 @@ class ShowController(BaseController):
             return make_response(jsonify({'status': 'ok'}), 200)
 
         @self._app.route(base_name + "/<show_id>/<season_id>/<episode_id>/watch", methods=['GET'])
-        def watch_episode(show_id, season_id, episode_id):
+        @JWTExtension.with_current_user
+        def watch_episode(current_user, show_id, season_id, episode_id):
             if not show_id:
                 return make_response({"error": "Missing show id!"}, 400)
             if not season_id:
                 return make_response({"error": "Missing season id!"}, 400)
             if not episode_id:
                 return make_response({"error": "Missing episode id!"}, 400)
+
+            # If user is logged in, save the show which the user opened
+            if current_user is not None:
+                user_opened_show = UserOpenedShow(user_id=current_user.id, show_id=show_id)
+                db.session.add(user_opened_show)
+                db.session.commit()
 
             # Find episode
             episode = Episode.query.filter_by(id=episode_id).first()
@@ -391,11 +408,18 @@ class ShowController(BaseController):
             return make_response('', 200)
 
         @self._app.route(base_name + "/<show_id>/<season_id>/watch", methods=['GET'])
-        def watch_season(show_id, season_id):
+        @JWTExtension.with_current_user
+        def watch_season(current_user, show_id, season_id):
             if not show_id:
                 return make_response({"error": "Missing show id!"}, 400)
             if not season_id:
                 return make_response({"error": "Missing season id!"}, 400)
+
+            # If user is logged in, save the show which the user opened
+            if current_user is not None:
+                user_opened_show = UserOpenedShow(user_id=current_user.id, show_id=show_id)
+                db.session.add(user_opened_show)
+                db.session.commit()
 
             # Find season
             season = Season.query.filter_by(id=season_id).first()

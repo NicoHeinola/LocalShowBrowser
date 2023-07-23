@@ -11,6 +11,30 @@ class JWTExtension:
     app: Flask = None
 
     @staticmethod
+    def with_current_user(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            token = None
+            # jwt is passed in the request header
+            if 'Authorization' in request.headers:
+                token = request.headers['Authorization']
+            # return 401 if token is not passed
+            if not token:
+                return f(None, *args, **kwargs)
+
+            try:
+                # decoding the payload to fetch the stored details
+                data = jwt.decode(token, JWTExtension.app.config['SECRET_KEY'], 'HS256')
+                current_user = User.query.filter_by(id=data['id']).first()
+            except Exception as e:
+                print("EXCEPTION:", e)
+                return jsonify({'message': 'Token is invalid!'}), 401
+            # returns the current logged in users context to the routes
+            return f(current_user, *args, **kwargs)
+
+        return decorated
+
+    @staticmethod
     def token_required(f):
         @wraps(f)
         def decorated(*args, **kwargs):

@@ -10,6 +10,7 @@ class Show(BaseModel):
     seasons = db.relationship("Season", backref=db.backref("show-seasons", uselist=False), cascade='all, delete')
     show_alternate_titles = db.relationship("ShowAlternateTitle", backref=db.backref("show-show-alternate-title", uselist=False), cascade="all,delete")
     cover_images = db.relationship("ShowCoverImage", backref=db.backref("cover-image", uselist=False), cascade="all,delete")
+    user_opened_shows = db.relationship("UserOpenedShow", backref=db.backref("show-user-opened-show", uselist=False), cascade="all,delete")  # Don't get this in serialize
 
     @property
     def serialize(self):
