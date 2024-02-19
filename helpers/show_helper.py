@@ -107,7 +107,12 @@ class ShowHelper:
             # Name & Folder checks
             if not os.path.isdir(d):
                 continue
+
             if file in blacklist:
+                continue
+
+            full_path: str = os.path.join(path, file)
+            if full_path in blacklist:
                 continue
 
             episodes = ShowHelper.get_path_episodes(d)
