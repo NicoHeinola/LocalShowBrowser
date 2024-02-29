@@ -9,7 +9,7 @@ class UserController(BaseController):
     def _register_routes(self):
         base_name = '/user'
 
-        @self._app.route(base_name + "/current", methods=['GET'])
+        @self._app.route(f"{base_name}/current", methods=['GET'])
         @JWTExtension.token_required
         def current_user(user):
             response = make_response(jsonify(user.serialize), 200)

@@ -11,7 +11,7 @@ class BlackListerFolderController(BaseController):
     def _register_routes(self):
         base_name = '/blacklisted_folder'
 
-        @self._app.route(base_name + "/all", methods=['GET'])
+        @self._app.route(f"{base_name}/all", methods=['GET'])
         @JWTExtension.token_required
         def get_blacklisted_folders(user):
             all_folders: List[BlackListerFolder] = BlackListerFolder.query.all()
@@ -19,7 +19,7 @@ class BlackListerFolderController(BaseController):
 
             return make_response(jsonify(all_folders_serialized))
 
-        @self._app.route(base_name + "/<id>", methods=['PUT'])
+        @self._app.route(f"{base_name}/<id>", methods=['PUT'])
         @JWTExtension.token_required
         def update_blacklisted_folder(user, id):
             folder = BlackListerFolder.query.filter_by(id=id).first()
@@ -42,7 +42,7 @@ class BlackListerFolderController(BaseController):
             db.session.commit()
             return make_response("", 200)
 
-        @self._app.route(base_name + "/<id>", methods=['DELETE'])
+        @self._app.route(f"{base_name}/<id>", methods=['DELETE'])
         @JWTExtension.token_required
         def delete_blacklisted_folder(user, id):
             folder = BlackListerFolder.query.filter_by(id=id).first()
