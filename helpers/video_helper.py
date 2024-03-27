@@ -52,35 +52,41 @@ class VideoHelper:
         return subtitles
 
     @staticmethod
-    def convert_video_to_hls(input_video: str, segment_directory: str, segment_filename: str, segment_duration: int, preset: str = "veryfast") -> None:
+    def convert_video_to_hls(input_video: str, segment_directory: str, segment_filename: str, segment_duration: int, preset: str = "medium") -> None:
         # Create output directory if it doesn't exist
+
+        segment_directory = segment_directory.replace("\\", "/")
+        input_video_changed_dashes = input_video.replace("\\", "/")
+
         os.makedirs(segment_directory, exist_ok=True)
 
-        probe = ffmpeg.probe(input_video)
+        probe = ffmpeg.probe(input_video_changed_dashes)
         duration: int = probe['format']['duration']
 
         # Create silent audio
         subprocess.run(
-            f'ffmpeg -f lavfi -i anullsrc=r=48000:cl=stereo -t {duration} -c:a aac -b:a 32k -y {segment_directory}/silent.aac',
+            f'ffmpeg -f lavfi -i anullsrc=r=48000:cl=stereo -t {duration} -c:a aac -b:a 32k -y "{segment_directory}/silent.aac"',
         )
 
         # Get subtitles
-        subtitles: list = VideoHelper.get_subtitles_from_video(input_video)
+        subtitles: list = VideoHelper.get_subtitles_from_video(input_video_changed_dashes)
 
         # Convert subtitles into segments
         for index in range(len(subtitles)):
             subprocess.run(
-                f'ffmpeg -y -i {input_video} -map 0:s:{index} -c:s webvtt -muxdelay 0 {segment_directory}/{segment_filename}_subtitles_{index}.vtt',
+                f'ffmpeg -y -i "{input_video_changed_dashes}" -map 0:s:{index} -c:s webvtt -muxdelay 0 "{segment_directory}/{segment_filename}_subtitles_{index}.vtt"',
                 shell=True
             )
 
             subprocess.run(
-                f'ffmpeg -y -i {segment_directory}/silent.aac -i {segment_directory}/{segment_filename}_subtitles_{index}.vtt -map 0:a:0 -c:v copy -map 1:s:0 -c:s webvtt -f hls -hls_time {segment_duration} -hls_playlist_type vod -muxdelay 0 {segment_directory}/{segment_filename}_subtitles_{index}.m3u8',
+                f'ffmpeg -y -i "{segment_directory}/silent.aac" -i "{segment_directory}/{segment_filename}_subtitles_{index}.vtt" -map 0:a:0 -c:v copy -map 1:s:0 -c:s webvtt -f hls -hls_time {segment_duration} -hls_playlist_type vod -muxdelay 0 "{segment_directory}/{segment_filename}_subtitles_{index}.m3u8"',
                 shell=True
             )
 
+            subtitle_playlist_filepath: str = f"{segment_directory}/{segment_filename}_subtitles_{index}.m3u8"
+
             # Delete temporary files
-            os.remove(f"{segment_directory}/{segment_filename}_subtitles_{index}.m3u8")
+            os.remove(subtitle_playlist_filepath)
 
         # Delete empty subtitle video files and keep only subtitles themselves
         for file in os.listdir(segment_directory):
@@ -88,16 +94,16 @@ class VideoHelper:
                 os.remove(os.path.join(segment_directory, file))
         os.remove(f"{segment_directory}/silent.aac")
 
-        audios: list = VideoHelper.get_audios_from_video(input_video)
+        audios: list = VideoHelper.get_audios_from_video(input_video_changed_dashes)
 
         # Convert audios into segments
         for index in range(len(audios)):
             subprocess.run(
-                f'ffmpeg -y -i {input_video} -map 0:a:{index} -c:a aac -strict -2 -muxdelay 0 {segment_directory}/{segment_filename}_audio_{index}.aac',
+                f'ffmpeg -y -i "{input_video_changed_dashes}" -map 0:a:{index} -c:a aac -strict -2 -muxdelay 0 "{segment_directory}/{segment_filename}_audio_{index}.aac"',
                 shell=True
             )
             subprocess.run(
-                f'ffmpeg -i {segment_directory}/{segment_filename}_audio_{index}.aac -c:a copy -f hls -hls_time {segment_duration} -hls_playlist_type vod -muxdelay 0 {segment_directory}/{segment_filename}_audio_{index}.m3u8',
+                f'ffmpeg -i "{segment_directory}/{segment_filename}_audio_{index}.aac" -c:a copy -f hls -hls_time {segment_duration} -hls_playlist_type vod -muxdelay 0 "{segment_directory}/{segment_filename}_audio_{index}.m3u8"',
                 shell=True
             )
 
@@ -106,7 +112,7 @@ class VideoHelper:
 
         # Convert video into segments
         subprocess.run(
-            f'ffmpeg -y -i {input_video} -map 0:v:0 -c:v libx264 -pix_fmt yuv420p -crf 20 -preset {preset} -hls_time {segment_duration} -hls_playlist_type vod -hls_segment_filename {segment_directory}/{segment_filename}_video_%03d.ts -muxdelay 0 {segment_directory}/{segment_filename}_video.m3u8',
+            f'ffmpeg -y -i "{input_video_changed_dashes}" -map 0:v:0 -c:v libx264 -pix_fmt yuv420p -crf 18 -preset {preset} -hls_time {segment_duration} -hls_playlist_type vod -hls_segment_filename "{segment_directory}/{segment_filename}_video_%03d.ts" -muxdelay 0 "{segment_directory}/{segment_filename}_video.m3u8"',
             shell=True
         )
 
@@ -137,23 +143,25 @@ class VideoHelper:
 
             f.write("\n")
             f.write('#EXT-X-STREAM-INF:BANDWIDTH=800000,AVERAGE-BANDWIDTH=600000,CODECS="avc1.42c00d,mp4a.40.2",AUDIO="audio",SUBTITLES="subs"\n')
-            f.write(f"{segment_directory}_video.m3u8\n")
+            f.write(f"{segment_filename}_video.m3u8\n")
 
             VideoHelper.conversion_threads.pop(input_video)
 
     @staticmethod
-    def create_video_segment_thread(input_video: str, segment_directory: str, segment_filename: str, segment_duration: int, preset: str = "veryfast") -> None:
+    def create_video_segment_thread(input_video: str, segment_directory: str, segment_filename: str, segment_duration: int, preset: str = "medium") -> bool:
         if not VideoHelper.is_ffmpeg_installed():
-            return
+            return False
 
         # If video is already being converted
-        if input_video in VideoHelper.conversion_threads:
-            return
+        if VideoHelper.is_video_converting(input_video):
+            return False
 
         # Create a conversion thread that converts the video
-        thread: Thread = Thread(target=lambda: VideoHelper.create_video_segment_thread(input_video, segment_directory, segment_filename, segment_duration, preset))
+        thread: Thread = Thread(target=lambda: VideoHelper.convert_video_to_hls(input_video, segment_directory, segment_filename, segment_duration, preset))
         VideoHelper.conversion_threads[input_video] = thread
         thread.start()
+
+        return True
 
     @staticmethod
     def install_ffmpeg() -> bool:

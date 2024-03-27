@@ -438,14 +438,14 @@ class ShowController(BaseController):
         @JWTExtension.admin_token_required
         def generate_episode_stream_files(current_user, episode_id):
             if episode_id is None:
-                return make_response({"error": "Missing show id!"}, 400)
+                return make_response({"error": "Missing episode id!"}, 400)
 
             episode: Episode = Episode.query.filter_by(id=episode_id).first()
 
             if episode is None:
                 return make_response({"error": "Episode was not found!"}, 404)
 
-            season: Season = Season.query.filter_by(id=episode.season_id)
+            season: Season = Season.query.filter_by(id=episode.season_id).first()
 
             if season is None:
                 return make_response({"error": "Season not found!"}, 404)
@@ -453,7 +453,7 @@ class ShowController(BaseController):
             # Find a not-used directory name
             random_directory_path: str = GeneralHelper.generate_random_folder_path(30, self._app.config["SHOW_STREAM_VIDEO_PATH"])
 
-            if os.path.exists(season.stream_directory_path):
+            if season.stream_directory_path is not None and os.path.exists(season.stream_directory_path):
                 shutil.rmtree(season.stream_directory_path, ignore_errors=True)
 
             os.mkdir(random_directory_path)
@@ -463,13 +463,48 @@ class ShowController(BaseController):
             filename_without_extension, extension = os.path.splitext(episode.filename)
             episode_path: str = episode.get_full_path()
 
-            VideoHelper.create_video_segment_thread(episode_path, season.stream_directory_path, filename_without_extension, 20)
+            success: bool = VideoHelper.create_video_segment_thread(episode_path, season.stream_directory_path, filename_without_extension, 20)
+
+            if not success:
+                return make_response({"error": "Already generating stream files!"}, 404)
 
             db.session.commit()
 
             return make_response("", 200)
 
-        @self._app.route(f"{base_name}/<show_id>/<season_id>/<episode_id>/stream_path", methods=['GET'])
+        @self._app.route(f"{base_name}/<episode_id>/stream-file-status", methods=['GET'])
+        @JWTExtension.admin_token_required
+        def get_stream_file_status(current_user, episode_id):
+            if episode_id is None:
+                return make_response({"error": "Missing episode id!"}, 400)
+
+            episode: Episode = Episode.query.filter_by(id=episode_id).first()
+
+            if episode is None:
+                return make_response({"error": "Episode was not found!"}, 404)
+
+            episode_path: str = episode.get_full_path()
+
+            if VideoHelper.is_video_converting(episode_path):
+                return make_response({"status": "converting"}, 200)
+
+            season: Season = db.session.query(Season).join(Episode, Episode.season_id == Season.id).first()
+
+            if season is None:
+                return make_response({"error": "Episode doesn't have a valid season!"}, 404)
+
+            if season.stream_directory_path == "" or season.stream_directory_path is None:
+                return make_response({"status": "not-generated"}, 200)
+
+            filename, extension = os.path.splitext(episode.filename)
+            full_stream_path: str = os.path.join(season.stream_directory_path, filename + ".m3u8")
+
+            if not os.path.exists(full_stream_path):
+                return make_response({"status": "not-generated"}, 400)
+
+            return make_response({"status": "generated"}, 200)
+
+        @self._app.route(f"{base_name}/<show_id>/<season_id>/<episode_id>/stream-path", methods=['GET'])
         @JWTExtension.with_current_user
         def get_episode_stream_file_path(current_user, show_id, season_id, episode_id):
             if not episode_id:
@@ -485,7 +520,12 @@ class ShowController(BaseController):
 
             # If user is logged in, save the show which the user opened
             if current_user is not None:
-                user_opened_show = UserOpenedShow(user_id=current_user.id, show_id=show_id)
+                user_opened_show = UserOpenedShow.query.filter_by(user_id=current_user.id, show_id=show_id).first()
+
+                # Create new user opened show if one for this user and show doesn't already exist
+                if user_opened_show is None:
+                    user_opened_show = UserOpenedShow(user_id=current_user.id, show_id=show_id)
+
                 db.session.add(user_opened_show)
                 db.session.commit()
 
