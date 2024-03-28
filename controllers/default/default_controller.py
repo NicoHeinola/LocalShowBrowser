@@ -13,10 +13,10 @@ class DefaultController(BaseController):
         base_name = ''
         front_dir = os.path.join(self._app.root_path, 'front_build')
 
-        @self._app.route(base_name + "/")
+        @self._app.route(f"{base_name}/")
         def front_index():
             return send_from_directory(front_dir, 'index.html')
 
-        @self._app.route(base_name + '/<path:filename>')
+        @self._app.route(f'{base_name}/<path:filename>')
         def serve_static(filename):
             return send_from_directory(front_dir, filename)

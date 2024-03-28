@@ -12,7 +12,7 @@ class AuthController(BaseController):
     def _register_routes(self):
         base_name = '/auth'
 
-        @self._app.route(base_name + "/login", methods=['POST'])
+        @self._app.route(f"{base_name}/login", methods=['POST'])
         def login():
             data = request.json
             username = data['username']
@@ -36,7 +36,7 @@ class AuthController(BaseController):
 
             return make_response(jsonify({'token': token}), 200)
 
-        @self._app.route(base_name + "/register", methods=['POST'])
+        @self._app.route(f"{base_name}/register", methods=['POST'])
         def register():
             data = request.json
             username = data['username']
