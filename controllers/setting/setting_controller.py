@@ -12,7 +12,7 @@ class SettingController(BaseController):
     def _register_routes(self):
         base_name = '/setting'
 
-        @self._app.route(base_name + "/all", methods=['GET'])
+        @self._app.route(f"{base_name}/all", methods=['GET'])
         @JWTExtension.admin_token_required
         def get_settings(user):
             all_settings: List[Setting] = Setting.query.all()
@@ -21,7 +21,7 @@ class SettingController(BaseController):
 
             return make_response(jsonify(all_settings_serialized))
 
-        @ self._app.route(base_name + "/<name>", methods=['DELETE'])
+        @ self._app.route(f"{base_name}/<name>", methods=['DELETE'])
         @ JWTExtension.admin_token_required
         def reset_setting(user, name):
             setting = Setting.query.filter_by(name=name).first()
@@ -35,7 +35,7 @@ class SettingController(BaseController):
 
             return make_response("", 200)
 
-        @ self._app.route(base_name + "/<name>", methods=['PUT'])
+        @ self._app.route(f"{base_name}/<name>", methods=['PUT'])
         @ JWTExtension.admin_token_required
         def change_setting(user, name):
             data = request.json

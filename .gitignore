@@ -6,3 +6,4 @@ instance/
 *.exe
 *.db
 front_build
+ffmpeg/

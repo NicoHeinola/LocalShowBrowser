@@ -33,6 +33,8 @@ class ConfigHelper:
         # Settings
         ConfigHelper.app.config['SHOW_MAIN_PATH'] = fr"D:\Vid"
         ConfigHelper.app.config['VLC_MEDIA_PLAYER_EXECUTABLE_PATH'] = fr"C:/Program Files/VideoLAN/VLC/vlc.exe"
+        ConfigHelper.app.config['SHOW_STREAM_VIDEO_PATH'] = fr"Y:\ConvertedVideos"
+        ConfigHelper.app.config['FFMPEG_PATH'] = os.path.join(os.getcwd(), "ffmpeg_folder")
 
         for index, setting in enumerate(ConfigHelper.app.config):
             if index < 34:  # Default configs
